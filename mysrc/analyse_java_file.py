@@ -18,16 +18,20 @@ def analyze_java_file(file_path):
         node.member for _, node in tree.filter(javalang.tree.MethodInvocation)
     ]
 
-    return defined_methods, called_methods
+    # Extract imports
+    imports = [imp.path for imp in tree.imports]
+
+    return defined_methods, called_methods, imports
 
 if __name__ == "__main__":
-    # Path to the test Java file
-    java_file_path = "TestFile.java"
+    # Path to the main Java file
+    java_file_path = "MainFile.java"
 
     # Analyze the Java file
-    defined, called = analyze_java_file(java_file_path)
+    defined, called, imports = analyze_java_file(java_file_path)
 
     # Print the results
     print(f"Defined Methods: {defined}")
     print(f"Called Methods: {called}")
+    print(f"Imports: {imports}")
 
