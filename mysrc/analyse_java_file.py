@@ -88,7 +88,7 @@ if __name__ == "__main__":
     print(f"Class Definitions and Methods: {class_methods}")
     print("Method Calls with Context:")
     for caller, method in method_calls:
-        print(f"  - {method} called by {caller}")
+        print(f"  - ({method}) called by ({caller})")
     print("File Dependencies:")
     for caller, files in file_dependencies.items():
-        print(f"  - {caller}: {', '.join(files)}")
+        print(f"  - ({caller}): ({', '.join(files)})")
