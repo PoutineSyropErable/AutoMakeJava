@@ -4,10 +4,18 @@ from graphviz import Digraph
 
 
 def parse_java_file(file_path):
-    """Reads and parses a Java file, returning the AST."""
+    """Reads and parses a Java file, returning the AST and content."""
     with open(file_path, 'r') as file:
         content = file.read()
-    return javalang.parse.parse(content)
+    tree = javalang.parse.parse(content)
+    return tree, content
+
+
+def get_package(tree):
+    """Extracts the package declaration from the AST."""
+    if tree.package:
+        return tree.package.name
+    return None
 
 
 def get_imports(tree):
@@ -25,13 +33,14 @@ def get_method_calls_with_context(tree):
     return method_calls
 
 
-def find_file_dependencies(java_file_path, imports, method_calls, base_dir):
+def find_file_dependencies(java_file_path, package, imports, method_calls, base_dir):
     """
-    Determines file dependencies for a given Java file based on method calls
-    and imports.
+    Determines file dependencies for a given Java file based on method calls,
+    imports, and the package declaration.
 
     Args:
         java_file_path (str): Path to the Java file.
+        package (str): Package name of the Java file.
         imports (list): List of imported packages or classes in the file.
         method_calls (list): List of tuples with (caller, method) for method calls.
         base_dir (str): Base directory to resolve file paths.
@@ -43,15 +52,25 @@ def find_file_dependencies(java_file_path, imports, method_calls, base_dir):
 
     for caller, method in method_calls:
         if caller != "unknown (local or implicit)":
+            # Match the caller to imports or same-package classes
             matching_imports = [
                 imp for imp in imports if caller in imp.split(".")
             ]
             if matching_imports:
-                # Map the class to the matching import file
+                # Map the class to the matching import
                 dependencies[caller] = matching_imports[0]
             else:
-                dependencies[caller] = "Unknown Source"
-
+                # Check if the caller is in the same package
+                if package:
+                    potential_path = os.path.join(
+                        base_dir,
+                        package.replace(".", os.sep),
+                        f"{caller}.java",
+                    )
+                    if os.path.exists(potential_path):
+                        dependencies[caller] = potential_path
+                    else:
+                        dependencies[caller] = "Unknown Source"
     return dependencies
 
 
@@ -80,27 +99,35 @@ def generate_dependency_tree(java_file_path, base_dir, tree=None, visited=None):
 
     # Parse the Java file
     try:
-        tree_ast = parse_java_file(java_file_path)
+        tree_ast, content = parse_java_file(java_file_path)
     except Exception as e:
         print(f"Error parsing {java_file_path}: {e}")
         return tree
 
-    # Extract imports and method calls
+    # Extract package, imports, and method calls
+    package = get_package(tree_ast)
     imports = get_imports(tree_ast)
     method_calls = get_method_calls_with_context(tree_ast)
 
     # Find dependencies
-    dependencies = find_file_dependencies(java_file_path, imports, method_calls, base_dir)
+    dependencies = find_file_dependencies(java_file_path, package, imports, method_calls, base_dir)
 
     # Add to the tree
     tree[java_file_path] = {}
 
     for _, dependency in dependencies.items():
         # Resolve file path for the dependency
-        dependency_path = os.path.join(base_dir, dependency.replace(".", os.sep) + ".java")
-        if os.path.exists(dependency_path):
-            tree[java_file_path][dependency_path] = {}
-            generate_dependency_tree(dependency_path, base_dir, tree[java_file_path], visited)
+        if dependency != "Unknown Source":
+            if not dependency.endswith(".java"):
+                dependency_path = os.path.join(
+                    base_dir, dependency.replace(".", os.sep) + ".java"
+                )
+            else:
+                dependency_path = dependency
+
+            if os.path.exists(dependency_path):
+                tree[java_file_path][dependency_path] = {}
+                generate_dependency_tree(dependency_path, base_dir, tree[java_file_path], visited)
 
     return tree
 

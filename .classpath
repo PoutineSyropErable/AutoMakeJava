@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+    <!-- Source directory -->
+    <classpathentry kind="src" path="src"/>
+
+    <!-- Output directory -->
+    <classpathentry kind="output" path="bin"/>
+
+    <!-- Java Utils libraries -->
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+
+    <!-- JavaFX library -->
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.base.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.controls.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.fxml.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.graphics.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.media.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.swing.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/javafx-sdk-17.0.13/lib/javafx.web.jar"/>
+
+    <!-- JUnit 5 libraries -->
+    <classpathentry kind="lib" path="/usr/lib/jvm/junit5/junit-jupiter-api-5.11.3.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/junit5/junit-jupiter-engine-5.11.3.jar"/>
+    <classpathentry kind="lib" path="/usr/lib/jvm/junit5/junit-jupiter-params-5.11.3.jar"/>
+
+    <!-- JUnit 4 library -->
+    <classpathentry kind="lib" path="/usr/lib/jvm/junit4/junit-4.13.2.jar"/>
+
+</classpath>
+

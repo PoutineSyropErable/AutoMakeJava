@@ -28,6 +28,7 @@ public final class Driver {
 		Inventory inventory3 = new Inventory("IGA Location 3");
 		for (Item item : ITEMS) {
 			inventory1.stock(item, random.nextInt(MAX_STOCK));
+			// new thing
 			inventory2.stock(item, random.nextInt(MAX_STOCK));
 			inventory3.stock(item, random.nextInt(MAX_STOCK));
 		}
