@@ -2,6 +2,7 @@
 <classpath>
     <!-- Source directory -->
     <classpathentry kind="src" path="src"/>
+    <classpathentry kind="src" path="mysrc"/>
 
     <!-- Output directory -->
     <classpathentry kind="output" path="bin"/>

@@ -1,11 +1,35 @@
-import os
+#!/home/francois/MainPython_Virtual_Environment/pip_venv/bin/python
+import os, sys
 import javalang
 from graphviz import Digraph
 
 
+# List of files indicating the root of a Java project
+PROJECT_ROOT_FILES = {".git", "pom.xml", "build.gradle", "build.xml", ".classpath", ".project"}
+
+
+def find_base_directory(java_file, max_depth=10):
+    """Backtrack up to 10 times or until '/' is reached, looking for a Java project root."""
+    current_dir = os.path.abspath(os.path.dirname(java_file))  # Start from file's directory
+
+    for _ in range(max_depth):
+        # Check if any root marker exists in the current directory
+        if any(os.path.exists(os.path.join(current_dir, marker)) for marker in PROJECT_ROOT_FILES):
+            return current_dir  # Found root
+
+        # Stop if we reach root `/` or `C:\` on Windows
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir == current_dir:  # Reached root
+            break
+
+        current_dir = parent_dir  # Move up one level
+
+    raise AssertionError("Couldn't find project root")
+
+
 def parse_java_file(file_path):
     """Reads and parses a Java file, returning the AST and content."""
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         content = file.read()
     tree = javalang.parse.parse(content)
     return tree, content
@@ -53,9 +77,7 @@ def find_file_dependencies(java_file_path, package, imports, method_calls, base_
     for caller, method in method_calls:
         if caller != "unknown (local or implicit)":
             # Match the caller to imports or same-package classes
-            matching_imports = [
-                imp for imp in imports if caller in imp.split(".")
-            ]
+            matching_imports = [imp for imp in imports if caller in imp.split(".")]
             if matching_imports:
                 # Map the class to the matching import
                 dependencies[caller] = matching_imports[0]
@@ -74,7 +96,7 @@ def find_file_dependencies(java_file_path, package, imports, method_calls, base_
     return dependencies
 
 
-def generate_dependency_tree(java_file_path, base_dir, tree=None, visited=None):
+def generate_dependency_tree(java_file_path, base_dir, tree=None, visited=None) -> dict:
     """
     Recursively generates a dependency tree for a given Java file.
 
@@ -119,9 +141,7 @@ def generate_dependency_tree(java_file_path, base_dir, tree=None, visited=None):
         # Resolve file path for the dependency
         if dependency != "Unknown Source":
             if not dependency.endswith(".java"):
-                dependency_path = os.path.join(
-                    base_dir, dependency.replace(".", os.sep) + ".java"
-                )
+                dependency_path = os.path.join(base_dir, dependency.replace(".", os.sep) + ".java")
             else:
                 dependency_path = dependency
 
@@ -154,22 +174,27 @@ def visualize_dependency_tree(tree, output_path="dependency_tree"):
 
 
 if __name__ == "__main__":
-    import sys
 
-    if len(sys.argv) != 3:
-        print("Usage: python dependency_tree.py <path_to_java_file> <base_directory>")
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <path-to-java-file>")
         sys.exit(1)
 
+    print("\n\n-----------------Start of Program ---------------\n\n")
     java_file = sys.argv[1]
-    base_directory = sys.argv[2]
+    base_directory = find_base_directory(java_file)
+    print(f"Java file = {java_file},\nproject root = {base_directory}\n\n")
 
     # Generate the dependency tree
-    dependency_tree = generate_dependency_tree(java_file, base_directory)
-
-    # Visualize the dependency tree
-    visualize_dependency_tree(dependency_tree)
+    dependency_tree: dict = generate_dependency_tree(java_file, base_directory)
 
     # Print the tree structure for debugging
-    print("Dependency Tree:")
+    print(f"Dependency Tree: (Length: {len(dependency_tree)})")
     print(dependency_tree)
 
+    if len(dependency_tree) < 2:
+        print("\ndependency_tree is empty\n")
+        exit(0)
+
+    print("\n\n\n")
+    # Visualize the dependency tree
+    visualize_dependency_tree(dependency_tree)
