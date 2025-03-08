@@ -2,10 +2,11 @@ import javalang
 
 
 def parse_java_file(file_path):
-    """Reads and parses a Java file, returning the AST."""
+    """Reads and parses a Java file, returning the AST and content."""
     with open(file_path, "r") as file:
         content = file.read()
-    return javalang.parse.parse(content)
+    tree = javalang.parse.parse(content)
+    return tree, content
 
 
 def get_imports(tree):
@@ -17,11 +18,7 @@ def get_class_methods(tree):
     """Returns a mapping of classes to their defined methods."""
     class_methods = {}
     for path, node in tree.filter(javalang.tree.ClassDeclaration):
-        methods = [
-            method.name
-            for method in node.methods
-            if isinstance(method, javalang.tree.MethodDeclaration)
-        ]
+        methods = [method.name for method in node.methods if isinstance(method, javalang.tree.MethodDeclaration)]
         class_methods[node.name] = methods
     return class_methods
 
@@ -66,9 +63,7 @@ def find_file_dependencies(java_file_path, imports, method_calls):
         if caller != "unknown (local or implicit)":
             # Find the corresponding import
             matching_imports = [imp for imp in imports if caller in imp.split(".")]
-            dependencies[caller] = (
-                matching_imports if matching_imports else ["Unknown Source"]
-            )
+            dependencies[caller] = matching_imports if matching_imports else ["Unknown Source"]
 
     return dependencies
 

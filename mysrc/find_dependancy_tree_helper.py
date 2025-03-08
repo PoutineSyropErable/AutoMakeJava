@@ -1,7 +1,12 @@
 #!/home/francois/MainPython_Virtual_Environment/pip_venv/bin/python
-import os, sys
-import javalang
+import os
+import os
+import re
+import sys
+import xml.etree.ElementTree as ET
+
 from graphviz import Digraph
+import javalang
 
 
 # List of files indicating the root of a Java project
@@ -25,6 +30,14 @@ def find_base_directory(java_file, max_depth=10):
         current_dir = parent_dir  # Move up one level
 
     raise AssertionError("Couldn't find project root")
+
+
+def get_source_dirs_from_classpath(classpath_file):
+    """Parses .classpath to extract source directories."""
+    tree = ET.parse(classpath_file)
+    root = tree.getroot()
+    source_dirs = [entry.get("path") for entry in root.findall(".//classpathentry[@kind='src']")]
+    return source_dirs
 
 
 def parse_java_file(file_path):
@@ -57,7 +70,16 @@ def get_method_calls_with_context(tree):
     return method_calls
 
 
-def find_file_dependencies(java_file_path, package, imports, method_calls, base_dir):
+def analyze_java_file(file_path):
+    """Analyzes a Java file and returns its imports, class-method mappings, and method calls."""
+    tree = parse_java_file(file_path)
+    imports = get_imports(tree)
+    class_methods = get_class_methods(tree)
+    method_calls = get_method_calls_with_context(tree)
+    return imports, class_methods, method_calls
+
+
+def find_file_dependencies(java_file_path, imports, method_calls):
     """
     Determines file dependencies for a given Java file based on method calls,
     imports, and the package declaration.
@@ -173,28 +195,58 @@ def visualize_dependency_tree(tree, output_path="dependency_tree"):
     print(f"Dependency tree visualization saved as {output_path}.png")
 
 
-if __name__ == "__main__":
+# ---------------------------------------------------------------------------------------
 
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <path-to-java-file>")
-        sys.exit(1)
 
-    print("\n\n-----------------Start of Program ---------------\n\n")
-    java_file = sys.argv[1]
-    base_directory = find_base_directory(java_file)
-    print(f"Java file = {java_file},\nproject root = {base_directory}\n\n")
+def get_imports_and_package(java_file):
+    """Extracts import statements and the package name from a Java file."""
+    imports = set()
+    package_name = None
 
-    # Generate the dependency tree
-    dependency_tree: dict = generate_dependency_tree(java_file, base_directory)
+    with open(java_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            # Extract package declaration
+            if line.startswith("package "):
+                package_name = line.split(" ")[1].rstrip(";")  # Extracts `utils` from `package utils;`
+            # Extract import statements
+            elif line.startswith("import "):
+                match = re.match(r"import\s+([\w\.]+);", line)
+                if match:
+                    imports.add(match.group(1))  # Example: utils.Helper
 
-    # Print the tree structure for debugging
-    print(f"Dependency Tree: (Length: {len(dependency_tree)})")
-    print(dependency_tree)
+    return package_name, imports
 
-    if len(dependency_tree) < 2:
-        print("\ndependency_tree is empty\n")
-        exit(0)
 
-    print("\n\n\n")
-    # Visualize the dependency tree
-    visualize_dependency_tree(dependency_tree)
+def generate_dependency_tree_brute_force(java_file_path: str, project_root_path: str):
+    """Finds all dependencies recursively for a given Java file."""
+
+    # Build a map of all Java files in the project
+    java_files = {}
+    for root, _, files in os.walk(project_root_path):
+        for file in files:
+            if file.endswith(".java"):
+                file_path = os.path.join(root, file)
+                package, _ = get_imports_and_package(file_path)
+
+                if package:
+                    class_name = f"{package}.{file.replace('.java', '')}"  # Example: utils.Helper
+                else:
+                    class_name = file.replace(".java", "")  # No package case
+
+                java_files[class_name] = file_path  # Store full path
+
+    # Resolve dependencies recursively
+    dependencies = set()
+    queue = [java_file_path]
+
+    while queue:
+        current_file = queue.pop(0)
+        _, imports = get_imports_and_package(current_file)
+
+        for imp in imports:
+            if imp in java_files and java_files[imp] not in dependencies:
+                dependencies.add(java_files[imp])
+                queue.append(java_files[imp])
+
+    return dependencies
