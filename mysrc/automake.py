@@ -1,9 +1,11 @@
-import os
+import os, sys
 import subprocess
 import xml.etree.ElementTree as ET
 
 from find_dependency_tree_helper import *
 from find_dependency_tree import main as get_compilation_order
+
+CAPTURE_OUTPUT = False  # keep it to false for real time commands
 
 
 def compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=False):
@@ -50,7 +52,6 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
     """
     main_class = path_to_module[java_file_path]  # Convert Java file path to module name
     print(f"Executing: {main_class}")
-    print("------------------------ Start of Java Program ------------------------------")
 
     run_cmd = [
         "java",
@@ -59,13 +60,20 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
         main_class,  # Main class name (without .java extension)
     ]
 
-    result = subprocess.run(run_cmd, capture_output=True, text=True)
+    if CAPTURE_OUTPUT:
+        result = subprocess.run(run_cmd, capture_output=True, text=True)
 
-    if result.returncode != 0:
-        print("❌ Execution failed!")
-        print(result.stderr)
+        if result.returncode != 0:
+            print("❌ Execution failed!")
+            print(result.stderr)
+        else:
+            print("🎉 Program output:\n")
+            print("------------------------ Start of Java Program ------------------------------")
+            print(result.stdout)
     else:
-        print("🎉 Program output:\n", result.stdout)
+        print("🎉 Program output:\n")
+        print("------------------------ Start of Java Program ------------------------------", flush=True)
+        subprocess.run(run_cmd, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
 
 
 def extract_classpath_from_xml(classpath_file, project_root: str, debug=False):

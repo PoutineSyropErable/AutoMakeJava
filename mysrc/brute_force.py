@@ -6,7 +6,7 @@ import sys
 import xml.etree.ElementTree as ET
 from typing import Tuple
 
-from graphviz import Digraph
+# from graphviz import Digraph
 import javalang
 
 
