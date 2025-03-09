@@ -43,6 +43,76 @@ def get_source_dirs_from_classpath(classpath_file) -> list[str]:
     return source_dirs
 
 
+def build_project_module_maps(project_root_path, source_dirs):
+    """
+    Scans the project source directories and builds:
+    1. A dictionary mapping Java file paths to module names.
+    2. A dictionary mapping package directories to package names.
+    3. Ensures module names do not contain `src.` or `mysrc.` prefixes.
+
+    Args:
+        project_root_path (str): Root directory of the project.
+        source_dirs (list[str]): List of source directories to scan.
+
+    Returns:
+        tuple: (dict[path -> module], dict[module -> path])
+
+    Raises:
+        ValueError: If two different source directories contain the same package name.
+    """
+    path_to_module = {}  # Maps Java file paths & package directories to module/package names
+    module_to_path = {}  # Maps module/package names to Java file paths & package directories
+    package_dirs = {}  # Track package directories to detect duplicates
+
+    for src_dir in source_dirs:
+        src_path = os.path.join(project_root_path, src_dir)
+
+        if not os.path.exists(src_path):
+            continue  # Skip non-existent source directories
+
+        for root, _, files in os.walk(src_path):
+            # Convert root to package name
+            relative_dir_path = os.path.relpath(root, src_path)  # Use src_path to remove src. or mysrc.
+            if relative_dir_path == ".":
+                continue  # Skip root directory itself
+
+            package_name = relative_dir_path.replace(os.sep, ".")  # Convert path separators to dots
+
+            # Ensure no duplicate package exists in different source directories
+            if package_name in package_dirs and package_dirs[package_name] != root:
+                raise ValueError(
+                    f"Error: Package '{package_name}' exists in multiple source directories: " f"{package_dirs[package_name]} and {root}"
+                )
+
+            # Store package directory
+            package_dirs[package_name] = root
+            path_to_module[root] = package_name  # Directory to package name
+            module_to_path[package_name] = root  # Package name to directory
+
+            for file in files:
+                if not file.endswith(".java"):  # Skip non-Java files
+                    continue
+
+                file_path = os.path.join(root, file)
+
+                # Convert file path to module name (without src. or mysrc. prefix)
+                relative_path = os.path.relpath(file_path, src_path)
+                module_name = relative_path.replace(os.sep, ".").replace(".java", "")  # Convert path to dot notation
+
+                # Populate dictionaries
+                path_to_module[file_path] = module_name
+
+                # Check for duplicate module definitions
+                if module_name in module_to_path:
+                    raise ValueError(
+                        f"Error: Module '{module_name}' is defined in multiple locations: " f"{module_to_path[module_name]} and {file_path}"
+                    )
+
+                module_to_path[module_name] = file_path
+
+    return path_to_module, module_to_path
+
+
 def find_file_dependencies(java_file_path, package, imports, method_calls, base_dir=".") -> dict:
     """
     Determines file dependencies for a given Java file based on method calls,
