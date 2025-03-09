@@ -71,7 +71,7 @@ def module_to_path(project_root_path: str, source_dirs: list[str], direct_depend
     return output_dict
 
 
-def generate_dependency_tree(java_file_path, project_root_path) -> dict:
+def generate_dependency_tree(java_file_path, project_root_path, modules_to_path_dict: dict = {}) -> dict:
     """
     Recursively generates a dependency tree for a given Java file.
 
@@ -85,12 +85,10 @@ def generate_dependency_tree(java_file_path, project_root_path) -> dict:
         dict: A hierarchical dependency tree.
     """
     dependency_tree_modules = {}
-    dependency_tree_path = {}
 
     classpath = f"{project_root_path}/.classpath"
     source_dirs = get_source_dirs_from_classpath(classpath)
     module_name_of_this = path_to_module(project_root_path, source_dirs, [java_file_path])[0]
-    modules_to_path_dict = {}  # Variable for caching modules -> path
     modules_to_path_dict[module_name_of_this] = java_file_path
 
     print(f"project root = {project_root_path}")
@@ -117,13 +115,16 @@ def generate_dependency_tree(java_file_path, project_root_path) -> dict:
 
     # end of loop
     print(f"\n\nDictionary: Module -> Path    =\n{modules_to_path_dict}\n")
+    dependency_tree_modules[module_name_of_this] = list(direct_dependencies_path_dict.keys())
+    print(f"Dependancy tree: {dependency_tree_modules}")
 
-    return {}
+    return dependency_tree_modules
 
 
 def main(java_file_path: str, project_root_path: str):
 
-    dependency_tree = generate_dependency_tree(java_file_path, project_root_path)
+    module_to_path_dict = {}
+    dependency_tree = generate_dependency_tree(java_file_path, project_root_path, module_to_path_dict)
     # Print the tree structure for debugging
     print("\n\n")
     print(f"Dependency Tree: (Length: {len(dependency_tree)})")
