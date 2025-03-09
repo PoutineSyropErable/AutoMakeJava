@@ -1,10 +1,8 @@
-#!/home/francois/MainPython_Virtual_Environment/pip_venv/bin/python
 import os
 import sys
 import numpy as np
 from find_dependency_tree_helper import *
 from java_file_analyser import *
-from brute_force import *
 
 from collections import defaultdict, deque
 
