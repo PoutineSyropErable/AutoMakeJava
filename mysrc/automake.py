@@ -2,7 +2,7 @@ import os, sys
 import subprocess
 import xml.etree.ElementTree as ET
 
-from find_dependency_tree_helper import *
+from find_dependency_tree_helper import find_base_directory
 from find_dependency_tree import main as get_compilation_order
 
 CAPTURE_OUTPUT = False  # keep it to false for real time commands

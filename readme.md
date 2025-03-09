@@ -1,85 +1,15 @@
 The .project and .classpath are needed, for you own projects.
 Then after that, put java files inside src and just to python automake.py "path to file"
 
-You also need to pip install javalang and numpy.
+You also need to pip install javalang and numpy. Preferably in a python venv so you don't fuck your machine
 
 ```bash
 pip install javalang numpy
 ```
 
-Add this to your shell rc so you can run it manually:
+# How to create venv
 
-```bash
-# Define paths
-AutoMakeJava_Path="${HOME}/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava"
-PYTHON_VENV_DIR="$HOME/MainPython_Virtual_Environment"
-
-# Path to Python executable inside the virtual environment
-pythonFor_AutoMakeJava="$PYTHON_VENV_DIR/javaAM/bin/python"
-
-
-# Unset alias if it exists (to avoid conflicts)
-unalias automakeJava 2>/dev/null
-
-# Function to run automake.py using the correct Python environment
-automakeJava() {
-	"$pythonFor_AutoMakeJava" "${AutoMakeJava_Path}/mysrc/automake.py" "$@"
-}
-
-
-# Alias to call the function
-alias java_run="automakeJava"
-# You can then do automakeJava java_file.java
-# java_run java_file.java
-
-```
-
-lua example for neovim:
-
-```lua
-
--- keymaps.lua, sourced from init.lua
-function RunCurrentFile()
-	local filepath = vim.api.nvim_buf_get_name(0) -- Get the full file path
-	local file_ext = vim.fn.fnamemodify(filepath, ":e") -- Get the file extension
-
-	if file_ext == "sh" then
-		-- Run Bash script
-		vim.cmd("!bash " .. vim.fn.shellescape(filepath))
-	elseif file_ext == "c" then
-		-- Compile and run C file
-		local executable = vim.fn.shellescape(filepath:gsub("%.c$", ""))
-		vim.cmd("!gcc " .. vim.fn.shellescape(filepath) .. " -o " .. executable .. " && " .. executable)
-	elseif file_ext == "cpp" then
-		-- Compile and run C file
-		local executable = vim.fn.shellescape(filepath:gsub("%.cpp$", ""))
-		vim.cmd("!g++ " .. vim.fn.shellescape(filepath) .. " -o " .. executable .. " && " .. executable)
-	elseif file_ext == "py" then
-		-- Run Python script
-		vim.cmd("!python3 " .. vim.fn.shellescape(filepath))
-	elseif file_ext == "java" then
-        ---------------------------------------- THIS --------------------------------------------------------------------
-		local autoMakeScript = "/home/francois/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava/mysrc/automake.py"
-		vim.cmd("!python3 " .. vim.fn.shellescape(autoMakeScript) .. " " .. vim.fn.shellescape(filepath))
-        ---------------------------------------- THIS --------------------------------------------------------------------
-	else
-		print("File type not supported for running with F4")
-	end
-end
-
-local keymap = vim.keymap -- too lazy to say vim.keymap every single time
--- makes keymap seting easier
-local function opts(desc) return { noremap = true, silent = true, desc = desc } end
-
-keymap.set("n", "<F4>", RunCurrentFile, opts("Run current file"))
-
-
-```
-
-I think it works now, maybe some day, I'll add other stuff for it, like not compiling if the .class is not older then .java like for make command
-
-For those of you who sucks with python and use something that's not goated like arch, maybe pip will cause version problems.
-I'm using newest shit cause arch is goat.
+For those of you who don't know python venv use something that's not goated like arch, maybe pip will cause version problems.
 So, if you see any weird C/C++/other language library error, like .so or .dll error when you use it, its cause your shit is too old.
 Don't change your system python, it might break your machine, and worst case scenario, bye bye.
 
@@ -142,6 +72,90 @@ alias lvenv="deactivate"
 
 ```
 
+# Shell Setup for automake java cli easy calling
+
+Add this to your shell rc so you can run it manually:
+
+```bash
+# Define paths
+AutoMakeJava_Path="${HOME}/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava"
+PYTHON_VENV_DIR="$HOME/MainPython_Virtual_Environment"
+
+# Path to Python executable inside the virtual environment
+pythonFor_AutoMakeJava="$PYTHON_VENV_DIR/javaAM/bin/python"
+
+
+# Unset alias if it exists (to avoid conflicts)
+unalias automakeJava 2>/dev/null
+
+# Function to run automake.py using the correct Python environment
+automakeJava() {
+	"$pythonFor_AutoMakeJava" "${AutoMakeJava_Path}/mysrc/automake.py" "$@"
+}
+
+
+# Alias to call the function
+alias java_run="automakeJava"
+# You can then do automakeJava java_file.java
+# java_run java_file.java
+
+```
+
+# Neovim example for calling it on current file with <F4>
+
+lua example for neovim:
+
+```lua
+
+-- keymaps.lua, sourced from init.lua
+function RunCurrentFile()
+	local filepath = vim.api.nvim_buf_get_name(0) -- Get the full file path
+	local file_ext = vim.fn.fnamemodify(filepath, ":e") -- Get the file extension
+
+	if file_ext == "sh" then
+		-- Run Bash script
+		vim.cmd("!bash " .. vim.fn.shellescape(filepath))
+	elseif file_ext == "c" then
+		-- Compile and run C file
+		local executable = vim.fn.shellescape(filepath:gsub("%.c$", ""))
+		vim.cmd("!gcc " .. vim.fn.shellescape(filepath) .. " -o " .. executable .. " && " .. executable)
+	elseif file_ext == "cpp" then
+		-- Compile and run C file
+		local executable = vim.fn.shellescape(filepath:gsub("%.cpp$", ""))
+		vim.cmd("!g++ " .. vim.fn.shellescape(filepath) .. " -o " .. executable .. " && " .. executable)
+	elseif file_ext == "py" then
+		-- Run Python script
+		vim.cmd("!python3 " .. vim.fn.shellescape(filepath))
+    ------------------------------------ THIS ------------------------------------------------------------
+	elseif file_ext == "java" then
+		local home = vim.fn.expand("$HOME")
+		local AutoMakeJava_location = "/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava"
+		local autoMakeScript = home .. AutoMakeJava_location .. "/mysrc/automake.py"
+        -- For /home/me/Documents/... Change the automakejava location for
+        -- where you downloaded my shit
+		vim.cmd("!python3 " .. vim.fn.shellescape(autoMakeScript) .. " " .. vim.fn.shellescape(filepath))
+        -- Note that this will need you to have activated the venv with javalang and numpy
+        -- before entering neovim. (And if its installed on your default python,
+        -- such a thing wont be a problem)
+    ------------------------------------ THIS ------------------------------------------------------------
+	else
+		print("File type not supported for running with F4")
+	end
+end
+
+local keymap = vim.keymap -- too lazy to say vim.keymap every single time
+-- makes keymap seting easier
+local function opts(desc) return { noremap = true, silent = true, desc = desc } end
+
+keymap.set("n", "<F4>", RunCurrentFile, opts("Run current file"))
+
+
+```
+
+# Usage
+
+I think it works now, maybe some day, I'll add other stuff for it, like not compiling if the .class is not older then .java like for make command
+
 then just
 
 ```bash
@@ -150,5 +164,9 @@ pip_activate javaAM
 pip install numpy javalang
 nvim Javafile.java
 <Press F4>
+
+# For CLI, (Example, you want to read user input, which doesn't work inside neovim)
+#  go to ./myrc, and do
+automakeJava MainFile.java
 
 ```
