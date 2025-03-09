@@ -9,3 +9,4 @@ module practice {
 	requires static junit;
 
 }
+// these things sucks

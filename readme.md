@@ -166,7 +166,7 @@ nvim Javafile.java
 <Press F4>
 
 # For CLI, (Example, you want to read user input, which doesn't work inside neovim)
-#  go to ./myrc, and do
+#  go to ./myrc/JavaSrc, and do
 automakeJava MainFile.java
 
 ```

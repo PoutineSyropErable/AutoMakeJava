@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
     <!-- Source directory -->
-    <classpathentry kind="src" path="src"/>
-    <classpathentry kind="src" path="mysrc"/>
+    <classpathentry kind="src" path="example_src"/>
+	<classpathentry kind="src" path="src/JavaSrc"/>
 
     <!-- Output directory -->
     <classpathentry kind="output" path="bin"/>
