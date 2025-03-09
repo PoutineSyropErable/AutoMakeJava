@@ -1,3 +1,7 @@
 #!/bin/bash
 
-python ./find_dependency_tree.py ./MainFile.java
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run the Python script using the absolute path
+python "$SCRIPT_DIR/automake.py" "$SCRIPT_DIR/MainFile.java"

@@ -38,8 +38,7 @@ def get_source_dirs_from_classpath(classpath_file) -> list[str]:
     root = tree.getroot()
     source_dirs: list[str] = [str(entry.get("path")) for entry in root.findall(".//classpathentry[@kind='src']")]
     if len(source_dirs) == 0:
-        print("\n\nSource dirs are empty, there's no source dir in classpath. Assuming src\n\n")
-        return ["src"]
+        raise AssertionError("\n\nSource dirs are empty, there's no source dir in classpath. Assuming src\n\n")
     return source_dirs
 
 
@@ -49,6 +48,7 @@ def build_project_module_maps(project_root_path, source_dirs):
     1. A dictionary mapping Java file paths to module names.
     2. A dictionary mapping package directories to package names.
     3. Ensures module names do not contain `src.` or `mysrc.` prefixes.
+    4. Uses real paths to avoid relative path issues.
 
     Args:
         project_root_path (str): Root directory of the project.
@@ -65,39 +65,43 @@ def build_project_module_maps(project_root_path, source_dirs):
     package_dirs = {}  # Track package directories to detect duplicates
 
     for src_dir in source_dirs:
-        src_path = os.path.join(project_root_path, src_dir)
+        src_path = os.path.realpath(os.path.join(project_root_path, src_dir))  # Use realpath for consistency
 
         if not os.path.exists(src_path):
             continue  # Skip non-existent source directories
 
         for root, _, files in os.walk(src_path):
-            # Convert root to package name
-            relative_dir_path = os.path.relpath(root, src_path)  # Use src_path to remove src. or mysrc.
-            if relative_dir_path == ".":
-                continue  # Skip root directory itself
+            root = os.path.realpath(root)  # Normalize root path
 
-            package_name = relative_dir_path.replace(os.sep, ".")  # Convert path separators to dots
+            # Compute package name relative to the src_dir
+            relative_dir_path = os.path.relpath(root, src_path)
+            package_name = relative_dir_path.replace(os.sep, ".") if relative_dir_path != "." else ""
 
             # Ensure no duplicate package exists in different source directories
-            if package_name in package_dirs and package_dirs[package_name] != root:
+            if package_name and package_name in package_dirs and package_dirs[package_name] != root:
                 raise ValueError(
                     f"Error: Package '{package_name}' exists in multiple source directories: " f"{package_dirs[package_name]} and {root}"
                 )
 
-            # Store package directory
-            package_dirs[package_name] = root
-            path_to_module[root] = package_name  # Directory to package name
-            module_to_path[package_name] = root  # Package name to directory
+            # Store package directory (only if it's a package, not the root)
+            if package_name:
+                package_dirs[package_name] = root
+                path_to_module[root] = package_name  # Directory to package name
+                module_to_path[package_name] = root  # Package name to directory
 
             for file in files:
                 if not file.endswith(".java"):  # Skip non-Java files
                     continue
 
-                file_path = os.path.join(root, file)
+                file_path = os.path.realpath(os.path.join(root, file))  # Use realpath
 
                 # Convert file path to module name (without src. or mysrc. prefix)
                 relative_path = os.path.relpath(file_path, src_path)
                 module_name = relative_path.replace(os.sep, ".").replace(".java", "")  # Convert path to dot notation
+
+                # If the file is directly inside `src/` or `mysrc/`, use only the filename
+                if package_name == "":
+                    module_name = file.replace(".java", "")
 
                 # Populate dictionaries
                 path_to_module[file_path] = module_name
@@ -153,7 +157,12 @@ def find_file_dependencies(java_file_path, package, imports, method_calls, base_
     return dependencies
 
 
-def find_file_dependencies_simple(package, imports, path_to_module, module_to_path):
+def get_all_java_files_depth_one(dir: str) -> list[str]:
+    """Returns a list of Java files only in the given directory (depth = 1)."""
+    return [os.path.join(dir, file) for file in os.listdir(dir) if file.endswith(".java") and os.path.isfile(os.path.join(dir, file))]
+
+
+def find_file_dependencies_simple(package, imports, path_to_module: dict[str, str], module_to_path: dict[str, str], debug: bool = False):
     """
     Determines file dependencies for a given Java file by:
     1. Treating all classes in the same package as internal dependencies.
@@ -169,107 +178,17 @@ def find_file_dependencies_simple(package, imports, path_to_module, module_to_pa
     Returns:
         dict: Mapping of dependencies (class/module names to file paths or import references).
     """
-    dependencies = {}
+    dependencies = []
+    if package != None:
+        if debug:
+            print(f"package = {package}")
+            print(f"path = {module_to_path.get(package, 'failed')}")
+        package_path = module_to_path[package]
+        java_file_paths = get_all_java_files_depth_one(package_path)
+        modules_in_package = []
+        for java_file_path in java_file_paths:
+            modules_in_package.append(path_to_module[java_file_path])
 
-    # Step 1: All classes in the same package are internal dependencies
-    package_dir = os.path.join(project_root_path, package.replace(".", os.sep)) if package else project_root_path
-    if os.path.exists(package_dir):
-        for file in os.listdir(package_dir):
-            if file.endswith(".java") and file != os.path.basename(java_file_path):
-                class_name = file.replace(".java", "")
-                dependencies[class_name] = os.path.join(package_dir, file)
+        dependencies += modules_in_package
 
-    # Step 2: Map imports to possible locations in the project
-    for imp in imports:
-        imp_path = os.path.join(project_root_path, imp.replace(".", os.sep) + ".java")
-        if os.path.exists(imp_path):
-            dependencies[imp.split(".")[-1]] = imp_path  # Store only class name as key
-
-    return dependencies
-
-
-def generate_dependency_tree_complicated(java_file_path, project_root_path, modules_to_path_dict=None) -> dict:
-    """
-    Generates a dependency tree for a given Java file using iterative tree traversal (BFS).
-
-    Args:
-        java_file_path (str): Path to the root Java file.
-        project_root_path (str): Root directory of the Java project.
-        modules_to_path_dict (dict, optional): Caching dictionary for module-to-path mapping.
-
-    Returns:
-        dict: A hierarchical dependency tree.
-    """
-    if modules_to_path_dict is None:
-        modules_to_path_dict = {}
-
-    dependency_tree_modules = {}
-    classpath = f"{project_root_path}/.classpath"
-    source_dirs = get_source_dirs_from_classpath(classpath)
-
-    # Initialize queue for BFS traversal
-    queue = deque()
-
-    # Get module name for the root Java file
-    module_name = path_to_module(project_root_path, source_dirs, [java_file_path])[0]
-    modules_to_path_dict[module_name] = java_file_path
-    queue.append(module_name)
-
-    visited = set()
-
-    while queue:
-        print("\n")
-        current_module = queue.popleft()  # Get the next module in BFS order
-        if current_module in visited:
-            continue
-
-        visited.add(current_module)
-        current_path = modules_to_path_dict[current_module]
-
-        print(f"Processing module: {current_module} ({current_path})")
-
-        # Analyze the file
-        package, imports, method_calls, instantiations = analyze_java_file(current_path)
-        print(f"package = {package}")
-        print(f"imports = {imports}")
-        print(f"method_calls = {method_calls}")
-        print(f"instantiations= {instantiations}")
-
-        # Determine dependencies
-        module_dependency_dict = find_file_dependencies_simple(package, imports, project_root_path, source_dirs)
-        print(f"module_dependency_dict = {module_dependency_dict}")
-        module_dependency_names = list(module_dependency_dict.values())
-
-        # Resolve paths of dependencies
-        direct_dependencies_path_dict = module_to_path(project_root_path, source_dirs, module_dependency_names, modules_to_path_dict)
-        dependency_tree_modules[current_module] = list(direct_dependencies_path_dict.keys())
-        print(f"Direct dependency_tree_modules = {dependency_tree_modules[current_module]}")
-
-        # Add new dependencies to the queue
-        for dep_module, dep_path in direct_dependencies_path_dict.items():
-            if dep_module not in visited:
-                modules_to_path_dict[dep_module] = dep_path
-                queue.append(dep_module)
-
-    return dependency_tree_modules
-
-
-def visualize_dependency_tree(tree, output_path="dependency_tree"):
-    """
-    Visualizes the dependency tree using Graphviz.
-
-    Args:
-        tree (dict): Dependency tree to visualize.
-        output_path (str): Output file path for the visualization.
-    """
-    dot = Digraph(comment="Java Dependency Tree")
-
-    def add_edges(node, parent=None):
-        for child, subtree in node.items():
-            if parent:
-                dot.edge(parent, child)
-            add_edges(subtree, child)
-
-    add_edges(tree)
-    dot.render(output_path, format="png", cleanup=True)
-    print(f"Dependency tree visualization saved as {output_path}.png")
+    return dependencies + imports

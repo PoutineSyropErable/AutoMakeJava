@@ -6,7 +6,7 @@ from find_dependency_tree_helper import *
 from java_file_analyser import *
 from brute_force import *
 
-from collections import deque
+from collections import defaultdict, deque
 
 
 def path_to_module(project_root_path: str, source_dirs: list[str], file_paths: list[str]) -> list[str]:
@@ -80,6 +80,7 @@ def generate_dependency_tree(
     module_to_path: dict[str, str],
     path_to_module: dict[str, str],
     source_dirs: list[str] = ["src"],
+    debug: bool = False,
 ) -> dict[str, list[str]]:
     """
     Generates a dependency tree for a given Java file using iterative tree traversal (BFS).
@@ -106,7 +107,8 @@ def generate_dependency_tree(
     visited = set()
 
     while queue:
-        print("\n")
+        if debug:
+            print("\n")
         current_module = queue.popleft()  # Get the next module in BFS order
         if current_module in visited:
             continue
@@ -114,67 +116,200 @@ def generate_dependency_tree(
         visited.add(current_module)
         current_path = module_to_path[current_module]
 
-        print(f"Processing module: {current_module} ({current_path})")
+        if debug:
+            print(f"Processing module: {current_module} ({current_path})")
 
         # Analyze the file
 
-        tree_ast, content = parse_java_file(java_file_path)
-        imports = get_imports(tree_ast, project_root_path, source_dirs)
+        tree_ast, content = parse_java_file(current_path)
+        imports = get_imports(tree_ast, module_to_path, path_to_module)
         package = get_package(tree_ast)
 
-        print(f"package = {package}")
-        print(f"imports = {imports}")
+        if debug:
+            print(f"package = {package}, {type(package)}")
+            print(f"imports = {imports}")
         # Not using method calls or instantiations
         # package, imports, method_calls, instantiations = analyze_java_file(current_path)
 
         # Determine dependencies
-        module_dependency_dict = find_file_dependencies_simple(package, imports, path_to_module, module_to_path)
-        print(f"module_dependency_dict = {module_dependency_dict}")
-        module_dependency_names = list(module_dependency_dict.values())
+        module_dependency_names = find_file_dependencies_simple(package, imports, path_to_module, module_to_path)
 
-        # Resolve paths of dependencies
-        dependency_tree_modules[current_module] = list(direct_dependencies_path_dict.keys())
-        print(f"Direct dependency_tree_modules = {dependency_tree_modules[current_module]}")
+        if debug:
+            print(f"module_dependency_names = {module_dependency_names}")
+        dependency_tree_modules[current_module] = module_dependency_names
 
         # Add new dependencies to the queue
-        for dep_module, dep_path in direct_dependencies_path_dict.items():
+        for dep_module in module_dependency_names:
             if dep_module not in visited:
-                module_to_path[dep_module] = dep_path
                 queue.append(dep_module)
 
     return dependency_tree_modules
 
 
-def main(java_file_path: str, project_root_path: str):
+def purge_self_dependencies(dependency_tree):
+    """
+    Removes self-dependencies from the dependency tree.
+
+    Args:
+        dependency_tree (dict): A dictionary where keys are module names,
+                                and values are lists of dependencies.
+
+    Returns:
+        dict: A cleaned dependency tree without self-references.
+    """
+    cleaned_tree = {}
+    for module, dependencies in dependency_tree.items():
+        cleaned_tree[module] = [dep for dep in dependencies if dep != module]
+    return cleaned_tree
+
+
+from collections import deque
+
+
+from collections import defaultdict, deque
+
+
+def find_cycles(dependency_tree):
+    """
+    Detects cycles in the dependency tree using Tarjan's Strongly Connected Components (SCC) algorithm.
+
+    Args:
+        dependency_tree (dict): A dictionary mapping modules to their dependencies.
+
+    Returns:
+        list of lists: Each inner list is a group of files that must be compiled together.
+    """
+    index = 0
+    stack = []
+    indices = {}
+    lowlinks = {}
+    on_stack = set()
+    sccs = []
+
+    def strongconnect(node):
+        nonlocal index
+        indices[node] = index
+        lowlinks[node] = index
+        index += 1
+        stack.append(node)
+        on_stack.add(node)
+
+        for neighbor in dependency_tree.get(node, []):
+            if neighbor not in indices:
+                strongconnect(neighbor)
+                lowlinks[node] = min(lowlinks[node], lowlinks[neighbor])
+            elif neighbor in on_stack:
+                lowlinks[node] = min(lowlinks[node], indices[neighbor])
+
+        if lowlinks[node] == indices[node]:
+            scc = []
+            while True:
+                w = stack.pop()
+                on_stack.remove(w)
+                scc.append(w)
+                if w == node:
+                    break
+            sccs.append(scc)
+
+    for node in dependency_tree:
+        if node not in indices:
+            strongconnect(node)
+
+    return sccs
+
+
+def get_compilation_batches(dependency_tree):
+    """
+    Computes a valid compilation order considering cyclic dependencies.
+
+    - Groups files in cycles together into a single compilation batch.
+    - Sorts independent files using topological sorting.
+
+    Args:
+        dependency_tree (dict): A dictionary where keys are module names,
+                                and values are lists of dependencies.
+
+    Returns:
+        list: A list of compilation steps (each step is a list of files to compile together).
+    """
+    # Step 1: Detect strongly connected components (cycles)
+    sccs = find_cycles(dependency_tree)
+
+    # Create a mapping of modules to their SCC group
+    module_to_scc = {}
+    for scc in sccs:
+        for module in scc:
+            module_to_scc[module] = tuple(scc)  # Use a tuple for immutability
+
+    # Step 2: Build a new DAG (dependency graph) of SCCs
+    scc_graph = defaultdict(set)
+    scc_in_degree = {scc: 0 for scc in map(tuple, sccs)}
+
+    for module, dependencies in dependency_tree.items():
+        for dep in dependencies:
+            if module_to_scc[module] != module_to_scc[dep]:  # Ignore internal cycle dependencies
+                scc_graph[module_to_scc[module]].add(module_to_scc[dep])
+
+    # Step 3: Compute topological ordering of SCCs
+    scc_in_degree = {scc: 0 for scc in map(tuple, sccs)}
+    for deps in scc_graph.values():
+        for dep in deps:
+            scc_in_degree[dep] += 1
+
+    # Start with SCCs that have no incoming dependencies
+    queue = deque([scc for scc in scc_in_degree if scc_in_degree[scc] == 0])
+    compilation_batches = []
+
+    while queue:
+        scc = queue.popleft()
+        compilation_batches.append(list(scc))  # Each SCC is compiled together
+
+        for neighbor in scc_graph[scc]:
+            scc_in_degree[neighbor] -= 1
+            if scc_in_degree[neighbor] == 0:
+                queue.append(neighbor)
+
+    return compilation_batches[::-1]
+
+
+def main(java_file_path: str, project_root_path: str, debug: bool = False):
 
     module_to_path_dict = {}
     classpath = f"{project_root_path}/.classpath"
     source_dirs = get_source_dirs_from_classpath(classpath)
     path_to_module, module_to_path = build_project_module_maps(project_root_path, source_dirs)
 
-    print(f"path_to_module =\n{path_to_module}\n")
-    print(f"module_to_path =\n{module_to_path}\n")
+    if debug:
+        print(f"path_to_module =\n{path_to_module}\n")
+        print(f"module_to_path =\n{module_to_path}\n")
 
     for java_file in path_to_module.values():
-        print(java_file)
+        if debug:
+            print(java_file)
 
-    print("\n\n")
+    if debug:
+        print("\n\n")
     for java_file in path_to_module.keys():
-        print(java_file)
+        if debug:
+            print(java_file)
+
+    if debug:
+        print("\n\n")
 
     dependency_tree = generate_dependency_tree(java_file_path, project_root_path, module_to_path, path_to_module, source_dirs)
+    dependency_tree = purge_self_dependencies(dependency_tree)
 
     # Print the tree structure for debugging
-    print(f"Dependency Tree: (Length: {len(dependency_tree)})")
-    print(dependency_tree)
+    if debug:
+        print(f"Dependency Tree: (Length: {len(dependency_tree)})")
+        print(dependency_tree)
 
-    exit(0)
-    # resolved_deps = generate_dependency_tree_brute_force(java_file_path, project_root_path)
+    compilation_order = get_compilation_batches(dependency_tree)
+    if debug:
+        print("\n")
+        print(f"compilation_order = {compilation_order}")
 
-    if resolved_deps:
-        print("\nResolved Dependencies:")
-        for dep in resolved_deps:
-            print(dep)
+    return compilation_order, module_to_path, path_to_module
 
 
 if __name__ == "__main__":
