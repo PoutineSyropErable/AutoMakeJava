@@ -1,11 +1,13 @@
 import javalang
+from javalang.tree import CompilationUnit
+from typing import Tuple
 
 
-def parse_java_file(file_path):
+def parse_java_file(file_path) -> Tuple[CompilationUnit, str]:
     """Reads and parses a Java file, returning the AST and content."""
     with open(file_path, "r") as file:
-        content = file.read()
-    tree = javalang.parse.parse(content)
+        content: str = file.read()
+    tree: CompilationUnit = javalang.parse.parse(content)
     return tree, content
 
 
@@ -33,16 +35,22 @@ def get_method_calls_with_context(tree):
     return method_calls
 
 
-def analyze_java_file(file_path):
-    """Analyzes a Java file and returns its imports, class-method mappings, and method calls."""
-    tree = parse_java_file(file_path)
-    imports = get_imports(tree)
-    class_methods = get_class_methods(tree)
-    method_calls = get_method_calls_with_context(tree)
-    return imports, class_methods, method_calls
+def get_package(tree):
+    """Extracts the package declaration from the AST."""
+    if tree.package:
+        return tree.package.name
+    return None
 
 
-def find_file_dependencies(java_file_path, imports, method_calls):
+def analyze_java_file(java_file_path):
+    tree_ast, content = parse_java_file(java_file_path)
+    package = get_package(tree_ast)
+    imports = get_imports(tree_ast)
+    method_calls = get_method_calls_with_context(tree_ast)
+    return package, imports, method_calls
+
+
+def find_file_dependencies_basic(java_file_path, imports, method_calls):
     """
     Determines file dependencies for a given Java file based on method calls
     and imports.
