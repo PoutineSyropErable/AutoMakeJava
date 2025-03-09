@@ -7,6 +7,33 @@ You also need to pip install javalang and numpy.
 pip install javalang numpy
 ```
 
+Add this to your shell rc so you can run it manually:
+
+```bash
+# Define paths
+AutoMakeJava_Path="${HOME}/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava"
+PYTHON_VENV_DIR="$HOME/MainPython_Virtual_Environment"
+
+# Path to Python executable inside the virtual environment
+pythonFor_AutoMakeJava="$PYTHON_VENV_DIR/javaAM/bin/python"
+
+
+# Unset alias if it exists (to avoid conflicts)
+unalias automakeJava 2>/dev/null
+
+# Function to run automake.py using the correct Python environment
+automakeJava() {
+	"$pythonFor_AutoMakeJava" "${AutoMakeJava_Path}/mysrc/automake.py" "$@"
+}
+
+
+# Alias to call the function
+alias java_run="automakeJava"
+# You can then do automakeJava java_file.java
+# java_run java_file.java
+
+```
+
 lua example for neovim:
 
 ```lua
@@ -118,8 +145,8 @@ alias lvenv="deactivate"
 then just
 
 ```bash
-pip_create javaFranck
-pip_activate javaFranck
+pip_create javaAM
+pip_activate javaAM
 pip install numpy javalang
 nvim Javafile.java
 <Press F4>
