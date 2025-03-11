@@ -90,7 +90,7 @@ unalias automakeJava 2>/dev/null
 
 # Function to run automake.py using the correct Python environment
 automakeJava() {
-	"$pythonFor_AutoMakeJava" "${AutoMakeJava_Path}/mysrc/automake.py" "$@"
+	"$pythonFor_AutoMakeJava" "${AutoMakeJava_Path}/src/automake.py" "$@"
 }
 
 
@@ -166,7 +166,7 @@ nvim Javafile.java
 <Press F4>
 
 # For CLI, (Example, you want to read user input, which doesn't work inside neovim)
-#  go to ./myrc/JavaSrc, and do
+#  go to ./src/JavaSrc, and do
 automakeJava MainFile.java
 
 ```
