@@ -130,7 +130,7 @@ function RunCurrentFile()
 	elseif file_ext == "java" then
 		local home = vim.fn.expand("$HOME")
 		local AutoMakeJava_location = "/Documents/University (Real)/Semester 10/Comp 303/AutomakeJava"
-		local autoMakeScript = home .. AutoMakeJava_location .. "/mysrc/automake.py"
+		local autoMakeScript = home .. AutoMakeJava_location .. "/src/automake.py"
         -- For /home/me/Documents/... Change the automakejava location for
         -- where you downloaded my shit
 		vim.cmd("!python3 " .. vim.fn.shellescape(autoMakeScript) .. " " .. vim.fn.shellescape(filepath))
