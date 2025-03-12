@@ -40,6 +40,8 @@ def get_class_path(java_file_path: str, project_root_path: str, classpath_file: 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Select only one option from the available choices.")
 
+    # Add a positional argument for the Java file
+    parser.add_argument("java_file", help="Path to the Java file")
     # Creating a mutually exclusive group to ensure only one option is chosen
     group = parser.add_mutually_exclusive_group(required=True)
 
@@ -61,7 +63,7 @@ if __name__ == "__main__":
         print("Error: You must provide a Java file path as an argument.")
         sys.exit(1)
 
-    java_file_path = os.path.realpath(sys.argv[1])
+    java_file_path = os.path.realpath(args.java_file)
     project_root_path = find_base_directory(java_file_path)
     classpath_file = f"{project_root_path}/.classpath"
     source_dirs = get_source_dirs_from_classpath(classpath_file)

@@ -81,7 +81,8 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
     else:
         if PRINT_OUTPUT:
             print("🎉 Program output:\n")
-            print("------------------------ Start of Java Program ------------------------------", flush=True)
+            print("------------------------ Start of Java Program ------------------------------")
+        print("", flush=True)
         subprocess.run(run_cmd, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
 
 
