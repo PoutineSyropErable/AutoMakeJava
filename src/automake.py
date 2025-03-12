@@ -6,6 +6,7 @@ from find_dependency_tree_helper import find_base_directory
 from find_dependency_tree import main as get_compilation_order
 
 CAPTURE_OUTPUT = False  # keep it to false for real time commands
+PRINT_OUTPUT = False  # For the main print output
 
 
 def compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=False):
@@ -20,7 +21,8 @@ def compile_project(project_root_path, compilation_order, output_dir, classpath,
     """
     for java_group in compilation_order:
         java_files = [module_to_path[module] for module in java_group]  # Get file paths
-        print(f"Compiling: {java_files}")
+        if PRINT_OUTPUT:
+            print(f"Compiling: {java_files}")
 
         compile_cmd = [
             "javac",
@@ -33,11 +35,13 @@ def compile_project(project_root_path, compilation_order, output_dir, classpath,
         result = subprocess.run(compile_cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
-            print("❌ Compilation failed!")
-            print(result.stderr)
+            if PRINT_OUTPUT:
+                print("❌ Compilation failed!")
+                print(result.stderr)
             return False  # Stop execution if compilation fails
 
-    print("✅ Compilation successful!")
+    if PRINT_OUTPUT:
+        print("✅ Compilation successful!")
     return True  # Indicate successful compilation
 
 
@@ -51,7 +55,8 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
         classpath (str): The full classpath string for execution.
     """
     main_class = path_to_module[java_file_path]  # Convert Java file path to module name
-    print(f"Executing: {main_class}")
+    if PRINT_OUTPUT:
+        print(f"Executing: {main_class}")
 
     run_cmd = [
         "java",
@@ -64,15 +69,18 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
         result = subprocess.run(run_cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
-            print("❌ Execution failed!")
-            print(result.stderr)
+            if PRINT_OUTPUT:
+                print("❌ Execution failed!")
+                print(result.stderr)
         else:
-            print("🎉 Program output:\n")
-            print("------------------------ Start of Java Program ------------------------------")
-            print(result.stdout)
+            if PRINT_OUTPUT:
+                print("🎉 Program output:\n")
+                print("------------------------ Start of Java Program ------------------------------")
+                print(result.stdout)
     else:
-        print("🎉 Program output:\n")
-        print("------------------------ Start of Java Program ------------------------------", flush=True)
+        if PRINT_OUTPUT:
+            print("🎉 Program output:\n")
+            print("------------------------ Start of Java Program ------------------------------", flush=True)
         subprocess.run(run_cmd, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
 
 
@@ -132,7 +140,8 @@ def main(java_file_path, project_root_path, debug=False):
     # Compile project
     if compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=debug):
         # Execute only if compilation succeeds
-        print("")
+        if PRINT_OUTPUT:
+            print("")
         execute_java_file(java_file_path, output_dir, classpath, path_to_module, debug=debug)
 
     return
