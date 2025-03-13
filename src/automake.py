@@ -8,6 +8,9 @@ from find_dependency_tree import main as get_compilation_order
 
 CAPTURE_OUTPUT = False  # keep it to false for real time commands
 PRINT_OUTPUT = False  # For the main print output
+DEBUG_ = False  # Show debug statement for this one (More ingrained then print output)
+
+DEBUG_PORT = 5005
 
 
 def compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=False):
@@ -31,7 +34,12 @@ def compile_project(project_root_path, compilation_order, output_dir, classpath,
             output_dir,  # Set output directory for .class files
             "-cp",
             f"{output_dir}:{classpath}",  # Classpath includes compiled files + dependencies
-        ] + java_files  # Append Java files to compile
+        ]
+
+        if debug:
+            compile_cmd.append("-g")  # Enable debugging information
+
+        compile_cmd.extend(java_files)  # Append Java files to compile
 
         result = subprocess.run(compile_cmd, capture_output=True, text=True)
 
@@ -63,30 +71,40 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
         "java",
         "-cp",
         f"{output_dir}:{classpath}",  # Classpath includes compiled files + dependencies
-        main_class,  # Main class name (without .java extension)
     ]
+    if debug:
+        run_cmd.append(f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:{DEBUG_PORT}")
+        if PRINT_OUTPUT:
+            print(f"🔍 Debug mode enabled: Listening for debugger on port {DEBUG_PORT}...")
 
-    if CAPTURE_OUTPUT:
-        result = subprocess.run(run_cmd, capture_output=True, text=True)
+    run_cmd.append(main_class)  # Append main class name
 
-        if result.returncode != 0:
-            if PRINT_OUTPUT:
-                print("❌ Execution failed!")
-                print(result.stderr)
-        else:
-            if PRINT_OUTPUT:
-                print("🎉 Program output:\n")
-                print("------------------------ Start of Java Program ------------------------------")
-                print(result.stdout)
-    else:
+    if not CAPTURE_OUTPUT:
         if PRINT_OUTPUT:
             print("🎉 Program output:\n")
             print("------------------------ Start of Java Program ------------------------------")
         print("", flush=True)
+
         subprocess.run(run_cmd, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
+        return
+
+    # if Capture Output
+    result = subprocess.run(run_cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        if PRINT_OUTPUT:
+            print("❌ Execution failed!")
+            print(result.stderr)
+    else:
+        if PRINT_OUTPUT:
+            print("🎉 Program output:\n")
+            print("------------------------ Start of Java Program ------------------------------")
+            print(result.stdout)
+
+    return
 
 
-def extract_classpath_from_xml(classpath_file, project_root: str, debug=False):
+def extract_classpath_from_xml(classpath_file, project_root: str):
     """
     Parses Eclipse .classpath XML and returns:
     - The absolute path of the output directory.
@@ -125,17 +143,17 @@ def extract_classpath_from_xml(classpath_file, project_root: str, debug=False):
 
 
 def main(java_file_path, project_root_path, debug=False):
-    if debug:
+    if DEBUG_:
         print("\n\n-----------------Start of Program ---------------\n\n")
 
-    compilation_order, module_to_path, path_to_module = get_compilation_order(java_file_path, project_root_path, debug=debug)
+    compilation_order, module_to_path, path_to_module = get_compilation_order(java_file_path, project_root_path)
     classpath_file = f"{project_root_path}/.classpath"
-    if debug:
+    if DEBUG_:
         print(f"classpath_file = {classpath_file}")
-    output_dir, classpath = extract_classpath_from_xml(classpath_file, project_root_path, debug=debug)
+    output_dir, classpath = extract_classpath_from_xml(classpath_file, project_root_path)
     output_dir = os.path.realpath(output_dir)
 
-    if debug:
+    if DEBUG_:
         print(f"output_dir = {output_dir}\n")
         print(f"classpath = {classpath}")
 
@@ -156,7 +174,7 @@ if __name__ == "__main__":
 
     java_file_path = os.path.realpath(sys.argv[1])
     project_root_path = find_base_directory(java_file_path)
-    # Check if --debug is passed
+    # Check if --DEBUG_ is passed
     debug_mode = "--debug" in sys.argv
 
     main(java_file_path, project_root_path, debug=debug_mode)

@@ -8,6 +8,7 @@ from typing import Tuple
 
 # from graphviz import Digraph
 
+from automake import DEBUG_
 
 # List of files indicating the root of a Java project
 PROJECT_ROOT_FILES = {".git", "pom.xml", "build.gradle", "build.xml", ".classpath", ".project"}
@@ -162,7 +163,7 @@ def get_all_java_files_depth_one(dir: str) -> list[str]:
     return [os.path.join(dir, file) for file in os.listdir(dir) if file.endswith(".java") and os.path.isfile(os.path.join(dir, file))]
 
 
-def find_file_dependencies_simple(package, imports, path_to_module: dict[str, str], module_to_path: dict[str, str], debug: bool = False):
+def find_file_dependencies_simple(package, imports, path_to_module: dict[str, str], module_to_path: dict[str, str]):
     """
     Determines file dependencies for a given Java file by:
     1. Treating all classes in the same package as internal dependencies.
@@ -180,7 +181,7 @@ def find_file_dependencies_simple(package, imports, path_to_module: dict[str, st
     """
     dependencies = []
     if package != None:
-        if debug:
+        if DEBUG_:
             print(f"package = {package}")
             print(f"path = {module_to_path.get(package, 'failed')}")
         package_path = module_to_path[package]

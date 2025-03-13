@@ -29,7 +29,7 @@ def get_mainfile_module_name(java_file_path: str, project_root_path: str, classp
 
 def get_class_path(java_file_path: str, project_root_path: str, classpath_file: str, source_dirs: list[str] = ["src"]) -> int:
     try:
-        output_dir, classpath = extract_classpath_from_xml(classpath_file, project_root_path, debug=False)
+        output_dir, classpath = extract_classpath_from_xml(classpath_file, project_root_path)
     except:
         return 1
 

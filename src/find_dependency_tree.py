@@ -6,6 +6,7 @@ from find_dependency_tree_helper import *
 from java_file_analyser import *
 
 from collections import defaultdict, deque
+from automake import DEBUG_
 
 
 def path_to_module(project_root_path: str, source_dirs: list[str], file_paths: list[str]) -> list[str]:
@@ -79,7 +80,6 @@ def generate_dependency_tree(
     module_to_path: dict[str, str],
     path_to_module: dict[str, str],
     source_dirs: list[str] = ["src"],
-    debug: bool = False,
 ) -> dict[str, list[str]]:
     """
     Generates a dependency tree for a given Java file using iterative tree traversal (BFS).
@@ -106,7 +106,7 @@ def generate_dependency_tree(
     visited = set()
 
     while queue:
-        if debug:
+        if DEBUG_:
             print("\n")
         current_module = queue.popleft()  # Get the next module in BFS order
         if current_module in visited:
@@ -115,7 +115,7 @@ def generate_dependency_tree(
         visited.add(current_module)
         current_path = module_to_path[current_module]
 
-        if debug:
+        if DEBUG_:
             print(f"Processing module: {current_module} ({current_path})")
 
         # Analyze the file
@@ -124,7 +124,7 @@ def generate_dependency_tree(
         imports = get_imports(tree_ast, module_to_path, path_to_module)
         package = get_package(tree_ast)
 
-        if debug:
+        if DEBUG_:
             print(f"package = {package}, {type(package)}")
             print(f"imports = {imports}")
         # Not using method calls or instantiations
@@ -133,7 +133,7 @@ def generate_dependency_tree(
         # Determine dependencies
         module_dependency_names = find_file_dependencies_simple(package, imports, path_to_module, module_to_path)
 
-        if debug:
+        if DEBUG_:
             print(f"module_dependency_names = {module_dependency_names}")
         dependency_tree_modules[current_module] = module_dependency_names
 
@@ -271,40 +271,40 @@ def get_compilation_batches(dependency_tree):
     return compilation_batches[::-1]
 
 
-def main(java_file_path: str, project_root_path: str, debug: bool = False):
+def main(java_file_path: str, project_root_path: str):
 
     module_to_path_dict = {}
     classpath = f"{project_root_path}/.classpath"
     source_dirs = get_source_dirs_from_classpath(classpath)
     path_to_module, module_to_path = build_project_module_maps(project_root_path, source_dirs)
 
-    if debug:
+    if DEBUG_:
         print(f"path_to_module =\n{path_to_module}\n")
         print(f"module_to_path =\n{module_to_path}\n")
 
     for java_file in path_to_module.values():
-        if debug:
+        if DEBUG_:
             print(java_file)
 
-    if debug:
+    if DEBUG_:
         print("\n\n")
     for java_file in path_to_module.keys():
-        if debug:
+        if DEBUG_:
             print(java_file)
 
-    if debug:
+    if DEBUG_:
         print("\n\n")
 
     dependency_tree = generate_dependency_tree(java_file_path, project_root_path, module_to_path, path_to_module, source_dirs)
     dependency_tree = purge_self_dependencies(dependency_tree)
 
-    # Print the tree structure for debugging
-    if debug:
+    # Print the tree structure for DEBUG_ging
+    if DEBUG_:
         print(f"Dependency Tree: (Length: {len(dependency_tree)})")
         print(dependency_tree)
 
     compilation_order = get_compilation_batches(dependency_tree)
-    if debug:
+    if DEBUG_:
         print("\n")
         print(f"compilation_order = {compilation_order}")
 
