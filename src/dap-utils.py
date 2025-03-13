@@ -10,6 +10,9 @@ from automake import execute_java_file, extract_classpath_from_xml, compile_proj
 from automake import main as automake_function
 
 
+LOCAL_JUNIT_PATH = os.path.expanduser("~/.local/java/junit")
+
+
 def get_mainfile_module_name(java_file_path: str, project_root_path: str, classpath_file: str, source_dirs: list[str] = ["src"]) -> int:
 
     java_file_path = os.path.realpath(java_file_path)  # Normalize the file path

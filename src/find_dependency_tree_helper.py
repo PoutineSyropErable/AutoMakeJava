@@ -8,7 +8,7 @@ from typing import Tuple
 
 # from graphviz import Digraph
 
-from automake import DEBUG_
+from config import DEBUG_
 
 # List of files indicating the root of a Java project
 PROJECT_ROOT_FILES = {".git", "pom.xml", "build.gradle", "build.xml", ".classpath", ".project"}

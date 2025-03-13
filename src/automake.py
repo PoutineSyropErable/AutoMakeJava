@@ -3,14 +3,12 @@ import os, sys
 import subprocess
 import xml.etree.ElementTree as ET
 
+
 from find_dependency_tree_helper import find_base_directory
 from find_dependency_tree import main as get_compilation_order
 
-CAPTURE_OUTPUT = False  # keep it to false for real time commands
-PRINT_OUTPUT = False  # For the main print output
-DEBUG_ = False  # Show debug statement for this one (More ingrained then print output)
-
-DEBUG_PORT = 5005
+from config import CAPTURE_OUTPUT, send_notification, PRINT_OUTPUT, DEBUG_, DEBUG_PORT
+from config import parse_classpath
 
 
 def compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=False):
@@ -157,6 +155,15 @@ def main(java_file_path, project_root_path, debug=False):
         print(f"output_dir = {output_dir}\n")
         print(f"classpath = {classpath}")
 
+    result = parse_classpath(classpath_file, project_root_path)
+    if result["suggested_moves"]:
+        print("\n💡 Suggested Moves:")
+        for old_path, new_path in result["suggested_moves"]:
+            print(f"🔄 Move: {old_path} → {new_path}")
+        print("\nRun the following command to move JUnit files:")
+        for old_path, new_path in result["suggested_moves"]:
+            print(f"mv {old_path} {new_path}")
+
     # Compile project
     if compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=debug):
         # Execute only if compilation succeeds
@@ -175,6 +182,7 @@ if __name__ == "__main__":
     java_file_path = os.path.realpath(sys.argv[1])
     project_root_path = find_base_directory(java_file_path)
     # Check if --DEBUG_ is passed
-    debug_mode = "--debug" in sys.argv
+    debug = "--debug" in sys.argv
+    send_notification(f"debug={debug}", java_file_path)
 
-    main(java_file_path, project_root_path, debug=debug_mode)
+    main(java_file_path, project_root_path, debug=debug)

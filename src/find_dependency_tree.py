@@ -6,7 +6,7 @@ from find_dependency_tree_helper import *
 from java_file_analyser import *
 
 from collections import defaultdict, deque
-from automake import DEBUG_
+from config import CAPTURE_OUTPUT, send_notification, PRINT_OUTPUT, DEBUG_, DEBUG_PORT
 
 
 def path_to_module(project_root_path: str, source_dirs: list[str], file_paths: list[str]) -> list[str]:
