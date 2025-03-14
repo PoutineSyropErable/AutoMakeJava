@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from find_dependency_tree_helper import find_base_directory
 from find_dependency_tree import main as get_compilation_order
 
-from config import CAPTURE_OUTPUT, send_notification, PRINT_OUTPUT, DEBUG_, DEBUG_PORT
+from config import CAPTURE_OUTPUT, send_notification, PRINT_OUTPUT, DEBUG_, DEBUG_PORT, COMPILE_ONLY, SOCKET_LISTEN
 from config import parse_classpath
 
 
@@ -71,7 +71,8 @@ def execute_java_file(java_file_path, output_dir, classpath, path_to_module, deb
         f"{output_dir}:{classpath}",  # Classpath includes compiled files + dependencies
     ]
     if debug:
-        run_cmd.append(f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:{DEBUG_PORT}")
+        if SOCKET_LISTEN:
+            run_cmd.append(f"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:{DEBUG_PORT}")
         if PRINT_OUTPUT:
             print(f"🔍 Debug mode enabled: Listening for debugger on port {DEBUG_PORT}...")
 
@@ -166,10 +167,11 @@ def main(java_file_path, project_root_path, debug=False):
 
     # Compile project
     if compile_project(project_root_path, compilation_order, output_dir, classpath, module_to_path, debug=debug):
-        # Execute only if compilation succeeds
-        if PRINT_OUTPUT:
-            print("")
-        execute_java_file(java_file_path, output_dir, classpath, path_to_module, debug=debug)
+        if not COMPILE_ONLY:
+            # Execute only if compilation succeeds
+            if PRINT_OUTPUT:
+                print("")
+            execute_java_file(java_file_path, output_dir, classpath, path_to_module, debug=debug)
 
     return
 

@@ -7,6 +7,8 @@ CAPTURE_OUTPUT = False  # keep it to false for real time commands
 PRINT_OUTPUT = False  # For the main print output
 DEBUG_ = False  # Show debug statement for this one (More ingrained then print output)
 
+COMPILE_ONLY = False
+SOCKET_LISTEN = True
 DEBUG_PORT = 5005
 LOCAL_JUNIT_PATH = os.path.expanduser("~/.local/java/junit/")
 
